@@ -1,7 +1,19 @@
-#include "custom_manager.hpp"
+/**
+ * Canary - A free and open-source MMORPG server emulator
+ * Copyright (©) 2019–present OpenTibiaBR <opentibiabr@outlook.com>
+ * Repository: https://github.com/opentibiabr/canary
+ * License: https://github.com/opentibiabr/canary/blob/main/LICENSE
+ * Contributors: https://github.com/opentibiabr/canary/graphs/contributors
+ * Website: https://docs.opentibiabr.com/
+ */
 
+#include "custom/custom_manager.hpp"
+
+#include <algorithm>
 #include <fstream>
+
 #include <nlohmann/json.hpp>
+
 #include "utils/tools.hpp"
 
 using json = nlohmann::json;
@@ -19,7 +31,6 @@ void CustomManager::load(const std::string &dataPath) {
 	const std::string path = dataPath + "/custom/types.json";
 	std::ifstream file(path);
 	if (!file.is_open()) {
-		// No custom types file — that's fine, nothing to load
 		m_loaded = true;
 		return;
 	}
@@ -32,27 +43,29 @@ void CustomManager::load(const std::string &dataPath) {
 		return;
 	}
 
-	// Damage types — slot 1-8
 	if (root.contains("damageTypes") && root["damageTypes"].is_array()) {
 		for (const auto &entry : root["damageTypes"]) {
 			int slot = entry.value("slot", 0);
-			if (slot < 1 || slot > 8) continue;
+			if (slot < 1 || slot > 8) {
+				continue;
+			}
 			const int idx = slot - 1;
-			m_damageTypes[idx].name        = entry.value("name", "Custom " + std::to_string(slot));
-			m_damageTypes[idx].textColor   = static_cast<uint8_t>(entry.value("textColor", 215));
+			m_damageTypes[idx].name = entry.value("name", "Custom " + std::to_string(slot));
+			m_damageTypes[idx].textColor = static_cast<uint8_t>(entry.value("textColor", 215));
 			m_damageTypes[idx].combatEffect = static_cast<uint16_t>(entry.value("combatEffect", 0));
-			m_damageTypes[idx].shootType   = static_cast<uint8_t>(entry.value("shootType", 0));
+			m_damageTypes[idx].shootType = static_cast<uint8_t>(entry.value("shootType", 0));
 			m_damageActive[idx] = true;
 		}
 	}
 
-	// Conditions — slot 1-8
 	if (root.contains("conditions") && root["conditions"].is_array()) {
 		for (const auto &entry : root["conditions"]) {
 			int slot = entry.value("slot", 0);
-			if (slot < 1 || slot > 8) continue;
+			if (slot < 1 || slot > 8) {
+				continue;
+			}
 			const int idx = slot - 1;
-			m_conditions[idx].name   = entry.value("name", "Custom " + std::to_string(slot));
+			m_conditions[idx].name = entry.value("name", "Custom " + std::to_string(slot));
 			m_conditions[idx].isBuff = entry.value("isBuff", false);
 			m_conditionActive[idx] = true;
 		}
@@ -63,16 +76,24 @@ void CustomManager::load(const std::string &dataPath) {
 }
 
 std::optional<CustomDamageType> CustomManager::getDamageType(CombatType_t type) const {
-	if (type < COMBAT_CUSTOM_1 || type > COMBAT_CUSTOM_8) return std::nullopt;
+	if (type < COMBAT_CUSTOM_1 || type > COMBAT_CUSTOM_8) {
+		return std::nullopt;
+	}
 	const int idx = static_cast<int>(type) - static_cast<int>(COMBAT_CUSTOM_1);
-	if (!m_damageActive[idx]) return std::nullopt;
+	if (!m_damageActive[idx]) {
+		return std::nullopt;
+	}
 	return m_damageTypes[idx];
 }
 
 std::optional<CustomCondition> CustomManager::getCondition(ConditionType_t type) const {
-	if (type < CONDITION_CUSTOM_1 || type > CONDITION_CUSTOM_8) return std::nullopt;
+	if (type < CONDITION_CUSTOM_1 || type > CONDITION_CUSTOM_8) {
+		return std::nullopt;
+	}
 	const int idx = static_cast<int>(type) - static_cast<int>(CONDITION_CUSTOM_1);
-	if (!m_conditionActive[idx]) return std::nullopt;
+	if (!m_conditionActive[idx]) {
+		return std::nullopt;
+	}
 	return m_conditions[idx];
 }
 
@@ -85,11 +106,15 @@ bool CustomManager::isConditionActive(ConditionType_t type) const {
 }
 
 CombatType_t CustomManager::damageSlotToEnum(int slot) {
-	if (slot < 1 || slot > 8) return COMBAT_NONE;
+	if (slot < 1 || slot > 8) {
+		return COMBAT_NONE;
+	}
 	return static_cast<CombatType_t>(static_cast<int>(COMBAT_CUSTOM_1) + slot - 1);
 }
 
 ConditionType_t CustomManager::conditionSlotToEnum(int slot) {
-	if (slot < 1 || slot > 8) return CONDITION_NONE;
+	if (slot < 1 || slot > 8) {
+		return CONDITION_NONE;
+	}
 	return static_cast<ConditionType_t>(static_cast<int>(CONDITION_CUSTOM_1) + slot - 1);
 }
