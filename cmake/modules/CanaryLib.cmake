@@ -4,6 +4,7 @@
 # Add subdirectories - these use ${CORE_TARGET_NAME} to add sources
 add_subdirectory(account)
 add_subdirectory(config)
+add_subdirectory(custom)
 add_subdirectory(creatures)
 add_subdirectory(database)
 add_subdirectory(game)

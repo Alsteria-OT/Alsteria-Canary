@@ -244,6 +244,16 @@ enum MagicEffectClasses : uint16_t {
 	CONST_ME_OUTBURST_GREEN = 290,
 	CONST_ME_OUTBURST_PINK = 291,
 
+	// Custom magic effect slots — configured via data/custom/types.json
+	CONST_ME_CUSTOM_1 = 300,
+	CONST_ME_CUSTOM_2 = 301,
+	CONST_ME_CUSTOM_3 = 302,
+	CONST_ME_CUSTOM_4 = 303,
+	CONST_ME_CUSTOM_5 = 304,
+	CONST_ME_CUSTOM_6 = 305,
+	CONST_ME_CUSTOM_7 = 306,
+	CONST_ME_CUSTOM_8 = 307,
+
 	CONST_ME_LAST
 };
 
@@ -314,6 +324,16 @@ enum ShootType_t : uint8_t {
 	CONST_ANI_CHERRYBOMB = 62,
 
 	CONST_ANI_LAST = CONST_ANI_CHERRYBOMB,
+
+	// Custom missile slots — configured via data/custom/types.json
+	CONST_ANI_CUSTOM_1 = 70,
+	CONST_ANI_CUSTOM_2 = 71,
+	CONST_ANI_CUSTOM_3 = 72,
+	CONST_ANI_CUSTOM_4 = 73,
+	CONST_ANI_CUSTOM_5 = 74,
+	CONST_ANI_CUSTOM_6 = 75,
+	CONST_ANI_CUSTOM_7 = 76,
+	CONST_ANI_CUSTOM_8 = 77,
 
 	// for internal use, don't send to client
 	CONST_ANI_WEAPONTYPE = 0xFE, // 254

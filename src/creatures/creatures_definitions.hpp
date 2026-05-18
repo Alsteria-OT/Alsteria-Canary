@@ -152,6 +152,16 @@ enum ConditionType_t : uint8_t {
 	CONDITION_SERENE = 38,
 	CONDITION_MENTOROTHER = 39,
 
+	// Custom condition slots — configured via data/custom/types.json
+	CONDITION_CUSTOM_1 = 40,
+	CONDITION_CUSTOM_2 = 41,
+	CONDITION_CUSTOM_3 = 42,
+	CONDITION_CUSTOM_4 = 43,
+	CONDITION_CUSTOM_5 = 44,
+	CONDITION_CUSTOM_6 = 45,
+	CONDITION_CUSTOM_7 = 46,
+	CONDITION_CUSTOM_8 = 47,
+
 	// Need the last ever
 	CONDITION_COUNT
 };
@@ -841,7 +851,17 @@ enum CombatType_t : uint8_t {
 	COMBAT_AGONYDAMAGE = 12,
 	COMBAT_NEUTRALDAMAGE = 13,
 
-	COMBAT_COUNT = 14,
+	// Custom damage type slots — configured via data/custom/types.json
+	COMBAT_CUSTOM_1 = 14,
+	COMBAT_CUSTOM_2 = 15,
+	COMBAT_CUSTOM_3 = 16,
+	COMBAT_CUSTOM_4 = 17,
+	COMBAT_CUSTOM_5 = 18,
+	COMBAT_CUSTOM_6 = 19,
+	COMBAT_CUSTOM_7 = 20,
+	COMBAT_CUSTOM_8 = 21,
+
+	COMBAT_COUNT = 22,
 
 	// Server read only
 	COMBAT_NONE = 255

@@ -10,6 +10,7 @@
 #include "canary_server.hpp"
 
 #include "core.hpp"
+#include "custom/custom_manager.hpp"
 #include "config/configmanager.hpp"
 #include "creatures/npcs/npcs.hpp"
 #include "creatures/players/grouping/familiars.hpp"
@@ -389,6 +390,8 @@ void CanaryServer::loadModules() {
 	modulesLoadHelper(Item::items.loadFromXml(), "items.xml");
 
 	const auto datapackFolder = g_configManager().getString(DATA_DIRECTORY);
+	g_customManager().load(datapackFolder);
+
 	logger.debug("Loading core scripts on folder: {}/", coreFolder);
 	// Load first core Lua libs
 	modulesLoadHelper((g_luaEnvironment().loadFile(coreFolder + "/core.lua", "core.lua") == 0), "core.lua");
