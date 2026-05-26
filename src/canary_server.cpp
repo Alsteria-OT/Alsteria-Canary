@@ -387,10 +387,17 @@ void CanaryServer::loadModules() {
 	modulesLoadHelper(g_imbuements().loadFromXml(), "XML/imbuements.xml");
 	modulesLoadHelper(g_storages().loadFromXML(), "XML/storages.xml");
 
-	modulesLoadHelper(Item::items.loadFromXml(), "items.xml");
-
+	// CustomManager MUST load before items.xml — the field-type registry it
+	// reads (data/custom/types.json) is consulted by parseFieldCombatType /
+	// parseFieldConditions while items.xml is being parsed. If the registry
+	// is still empty at that point, `field="holy"` (and any other custom
+	// name) resolves to COMBAT_NONE and the magicfield item gets parsed with
+	// no conditionDamage at all — silently breaking damage ticks for every
+	// custom field the user registered.
 	const auto datapackFolder = g_configManager().getString(DATA_DIRECTORY);
 	g_customManager().load(datapackFolder);
+
+	modulesLoadHelper(Item::items.loadFromXml(), "items.xml");
 
 	logger.debug("Loading core scripts on folder: {}/", coreFolder);
 	// Load first core Lua libs
