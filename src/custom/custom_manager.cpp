@@ -33,6 +33,11 @@ void CustomManager::load(const std::string &dataPath) {
 	const std::string path = dataPath + "/custom/types.json";
 	std::ifstream file(path);
 	if (!file.is_open()) {
+		// Log even when the file is missing — silent returns made it impossible
+		// to tell whether the loader ran but found nothing vs. whether a stale
+		// binary skipped the whole code path. This single line is the only
+		// reliable boot-time signal that the CustomManager wiring is alive.
+		g_logger().info("[CustomManager] No data/custom/types.json found at {} (using built-ins only)", path);
 		m_loaded = true;
 		return;
 	}
