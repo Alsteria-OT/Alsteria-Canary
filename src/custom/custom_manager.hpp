@@ -63,6 +63,10 @@ public:
 	static CombatType_t damageSlotToEnum(int slot);
 	static ConditionType_t conditionSlotToEnum(int slot);
 	static CombatType_t stringToCombatType(const std::string &name);
+	// Resolve a builtin condition name like "CONDITION_DAZZLED" — lets a
+	// field-type entry reuse an existing engine condition (with icon,
+	// resists, charms) instead of claiming a CUSTOM_* slot.
+	static ConditionType_t stringToConditionType(const std::string &name);
 
 private:
 	CustomManager() = default;

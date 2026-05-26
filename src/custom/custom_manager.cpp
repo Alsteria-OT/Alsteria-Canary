@@ -93,12 +93,21 @@ void CustomManager::load(const std::string &dataPath) {
 			CustomFieldType ft;
 			ft.name = name;
 
-			// Condition: prefer numeric slot (1..8). Falls back to a string
-			// like "CONDITION_FIRE" so users can re-skin existing conditions
-			// (rare but allowed for parity with vanilla field behavior).
-			int conditionSlot = entry.value("conditionSlot", 0);
-			if (conditionSlot >= 1 && conditionSlot <= 8) {
-				ft.conditionType = conditionSlotToEnum(conditionSlot);
+			// Condition resolution priority:
+			//   1. `conditionName` (e.g. "CONDITION_DAZZLED") — reuses a
+			//      builtin condition with full engine integration (icon,
+			//      charms, resists, cleansing).
+			//   2. `conditionSlot` (1..8) — claims a CUSTOM_* slot.
+			// `conditionName` wins so users can upgrade a registered field
+			// from custom-slot to builtin without renumbering everything.
+			if (entry.contains("conditionName") && entry["conditionName"].is_string()) {
+				ft.conditionType = stringToConditionType(entry["conditionName"].get<std::string>());
+			}
+			if (ft.conditionType == CONDITION_NONE) {
+				int conditionSlot = entry.value("conditionSlot", 0);
+				if (conditionSlot >= 1 && conditionSlot <= 8) {
+					ft.conditionType = conditionSlotToEnum(conditionSlot);
+				}
 			}
 
 			// Combat type: prefer numeric custom slot, else map a builtin
@@ -180,6 +189,25 @@ CombatType_t CustomManager::getCombatTypeForCondition(ConditionType_t conditionT
 		}
 	}
 	return COMBAT_NONE;
+}
+
+ConditionType_t CustomManager::stringToConditionType(const std::string &name) {
+	// Builtin conditions a custom field can reuse. Only conditions that have
+	// a sensible field-DoT meaning are exposed — the engine treats them as
+	// damage conditions and they round-trip through ConditionToDamageType
+	// natively, no CustomManager fallback required.
+	static const std::unordered_map<std::string, ConditionType_t> map = {
+		{ "CONDITION_FIRE", CONDITION_FIRE },
+		{ "CONDITION_POISON", CONDITION_POISON },
+		{ "CONDITION_ENERGY", CONDITION_ENERGY },
+		{ "CONDITION_BLEEDING", CONDITION_BLEEDING },
+		{ "CONDITION_DROWN", CONDITION_DROWN },
+		{ "CONDITION_FREEZING", CONDITION_FREEZING },
+		{ "CONDITION_DAZZLED", CONDITION_DAZZLED },
+		{ "CONDITION_CURSED", CONDITION_CURSED },
+	};
+	auto it = map.find(name);
+	return it == map.end() ? CONDITION_NONE : it->second;
 }
 
 CombatType_t CustomManager::stringToCombatType(const std::string &name) {
