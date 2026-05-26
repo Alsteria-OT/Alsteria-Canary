@@ -52,6 +52,10 @@ public:
 	std::optional<CustomDamageType> getDamageType(CombatType_t type) const;
 	std::optional<CustomCondition> getCondition(ConditionType_t type) const;
 	std::optional<CustomFieldType> getFieldType(const std::string &name) const;
+	// Reverse lookup used by Combat::ConditionToDamageType so a ticking
+	// custom-field condition (CONDITION_CUSTOM_*) knows which CombatType_t
+	// to deal damage as. Returns COMBAT_NONE if no field claims this slot.
+	CombatType_t getCombatTypeForCondition(ConditionType_t conditionType) const;
 
 	bool isDamageTypeActive(CombatType_t type) const;
 	bool isConditionActive(ConditionType_t type) const;

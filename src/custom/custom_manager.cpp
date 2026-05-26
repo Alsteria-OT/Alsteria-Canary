@@ -166,6 +166,17 @@ std::optional<CustomFieldType> CustomManager::getFieldType(const std::string &na
 	return it->second;
 }
 
+CombatType_t CustomManager::getCombatTypeForCondition(ConditionType_t conditionType) const {
+	// Iterate registered fields looking for the one bound to this condition
+	// slot. The registry is small (≤ 8 entries) so linear scan is fine.
+	for (const auto &[name, ft] : m_fieldTypes) {
+		if (ft.conditionType == conditionType) {
+			return ft.combatType;
+		}
+	}
+	return COMBAT_NONE;
+}
+
 CombatType_t CustomManager::stringToCombatType(const std::string &name) {
 	// Static map of canonical CombatType_t names → enum values. Matches the
 	// strings the OT Forge UI emits in types.json so the round-trip stays
