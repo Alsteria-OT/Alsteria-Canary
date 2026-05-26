@@ -34,7 +34,7 @@ struct CustomCondition {
 // magic fields (holy, ice, agony, etc.) without modifying the C++
 // switch tables in item_parse.cpp.
 struct CustomFieldType {
-	std::string name;                          // lowercase, matches items.xml value
+	std::string name; // lowercase, matches items.xml value
 	ConditionType_t conditionType = CONDITION_NONE;
 	CombatType_t combatType = COMBAT_NONE;
 };

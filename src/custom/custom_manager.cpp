@@ -81,7 +81,7 @@ void CustomManager::load(const std::string &dataPath) {
 	// users can add new field types via JSON without any source change.
 	if (root.contains("fields") && root["fields"].is_array()) {
 		for (const auto &entry : root["fields"]) {
-			std::string name = asLowerCaseString(entry.value("name", std::string{}));
+			std::string name = asLowerCaseString(entry.value("name", std::string {}));
 			if (name.empty()) {
 				continue;
 			}
