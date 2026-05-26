@@ -1935,6 +1935,7 @@ bool ConditionDamage::executeCondition(const std::shared_ptr<Creature> &creature
 
 		if (periodDamageTick >= tickInterval) {
 			periodDamageTick = 0;
+			g_logger().info("[ConditionDamage::executeCondition] period tick fire: type={}, value={}", static_cast<int>(conditionType), periodDamage);
 			doDamage(creature, periodDamage);
 		}
 	} else if (!damageList.empty()) {
@@ -1953,6 +1954,7 @@ bool ConditionDamage::executeCondition(const std::shared_ptr<Creature> &creature
 				damageInfo.timeLeft = damageInfo.interval;
 			}
 
+			g_logger().info("[ConditionDamage::executeCondition] list tick fire: type={}, value={}, bRemove={}, remaining={}", static_cast<int>(conditionType), damage, bRemove, damageList.size());
 			doDamage(creature, damage);
 		}
 
@@ -1988,6 +1990,7 @@ bool ConditionDamage::doDamage(const std::shared_ptr<Creature> &creature, int32_
 	const auto &attacker = (owner != 0) ? (g_game().getPlayerByGUID(owner) ? g_game().getPlayerByGUID(owner)->getCreature() : g_game().getCreatureByID(owner)) : nullptr;
 	const auto &attackerPlayer = attacker ? attacker->getPlayer() : nullptr;
 	if (creature->isSuppress(getType(), attackerPlayer != nullptr)) {
+		g_logger().info("[ConditionDamage::doDamage] suppressed: type={}, target={}", static_cast<int>(conditionType), creature->getName());
 		return true;
 	}
 
@@ -1996,11 +1999,14 @@ bool ConditionDamage::doDamage(const std::shared_ptr<Creature> &creature, int32_
 	damage.primary.value = healthChange;
 	damage.primary.type = Combat::ConditionToDamageType(conditionType);
 
+	g_logger().info("[ConditionDamage::doDamage] entry: conditionType={}, healthChange={}, resolved combatType={}, target={}, start={}", static_cast<int>(conditionType), healthChange, static_cast<int>(damage.primary.type), creature->getName(), start);
+
 	if (field && creature->getPlayer() && attackerPlayer) {
 		damage.primary.value = static_cast<int32_t>(std::round(damage.primary.value / 2.));
 	}
 
 	if (!creature->isAttackable() || Combat::canDoCombat(attacker, creature, damage.primary.type != COMBAT_HEALING) != RETURNVALUE_NOERROR) {
+		g_logger().info("[ConditionDamage::doDamage] aborted by canDoCombat / not attackable: target={}", creature->getName());
 		if (!creature->isInGhostMode() && !creature->getNpc()) {
 			g_game().addMagicEffect(creature->getPosition(), CONST_ME_POFF);
 		}
@@ -2008,6 +2014,7 @@ bool ConditionDamage::doDamage(const std::shared_ptr<Creature> &creature, int32_
 	}
 
 	if (g_game().combatBlockHit(damage, attacker, creature, false, false, field, !start)) {
+		g_logger().info("[ConditionDamage::doDamage] BLOCKED by combatBlockHit: target={}, value after block={}", creature->getName(), damage.primary.value);
 		return false;
 	}
 
@@ -2015,6 +2022,7 @@ bool ConditionDamage::doDamage(const std::shared_ptr<Creature> &creature, int32_
 		g_game().sendSingleSoundEffect(creature->getPosition(), tickSound, creature);
 	}
 
+	g_logger().info("[ConditionDamage::doDamage] calling combatChangeHealth: target={}, value={}", creature->getName(), damage.primary.value);
 	return g_game().combatChangeHealth(attacker, creature, damage);
 }
 
