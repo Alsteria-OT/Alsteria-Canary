@@ -10,6 +10,7 @@
 #include "items/functions/item/item_parse.hpp"
 
 #include "config/configmanager.hpp"
+#include "custom/custom_manager.hpp"
 #include "items/weapons/weapons.hpp"
 #include "lua/creature/movement.hpp"
 #include "utils/pugicast.hpp"
@@ -619,9 +620,15 @@ std::tuple<ConditionId_t, ConditionType_t> ItemParse::parseFieldConditions(pugi:
 	} else if (lowerStringValue == "physical") {
 		conditionType = CONDITION_BLEEDING;
 		return std::make_tuple(conditionId, conditionType);
-	} else {
-		g_logger().warn("[Items::parseItemNode] Unknown field value {}", valueAttribute.as_string());
 	}
+
+	// Fallthrough: check user-registered field types from data/custom/types.json
+	// before warning. Lets `field="holy"`, `field="ice"`, etc. resolve via the
+	// JSON registry without source changes — the OT Forge UI writes this file.
+	if (auto customField = g_customManager().getFieldType(lowerStringValue); customField) {
+		return std::make_tuple(CONDITIONID_COMBAT, customField->conditionType);
+	}
+	g_logger().warn("[Items::parseItemNode] Unknown field value {}", valueAttribute.as_string());
 	return std::make_tuple(CONDITIONID_DEFAULT, CONDITION_NONE);
 }
 
@@ -639,9 +646,15 @@ CombatType_t ItemParse::parseFieldCombatType(pugi::xml_attribute valueAttribute)
 		return COMBAT_PHYSICALDAMAGE;
 	} else if (lowerStringValue == "agony") {
 		return COMBAT_AGONYDAMAGE;
-	} else {
-		g_logger().warn("[Items::parseItemNode] Unknown field value {}", valueAttribute.as_string());
 	}
+
+	// Same fallthrough as parseFieldConditions — keep the two parsers in lockstep
+	// so a JSON-registered field gets both its condition tick and its damage
+	// type from one source of truth.
+	if (auto customField = g_customManager().getFieldType(lowerStringValue); customField) {
+		return customField->combatType;
+	}
+	g_logger().warn("[Items::parseItemNode] Unknown field value {}", valueAttribute.as_string());
 	return COMBAT_NONE;
 }
 
