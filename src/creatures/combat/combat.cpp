@@ -2444,6 +2444,11 @@ void MagicField::onStepInField(const std::shared_ptr<Creature> &creature) {
 	}
 
 	const ItemType &it = items[getID()];
+	// Diagnostic: dumb but useful for confirming the field item parsed with
+	// a conditionDamage at items.xml time. If this prints "no conditionDamage"
+	// the field item was registered but parseField never attached the
+	// damage block — usually a load-order issue or a typo in items.xml.
+	g_logger().info("[MagicField::onStepInField] id={} stepped on by '{}' — conditionDamage={}", getID(), creature ? creature->getName() : "?", it.conditionDamage ? "present" : "MISSING");
 	if (it.conditionDamage) {
 		const auto &conditionCopy = it.conditionDamage->clone();
 		auto ownerId = getOwnerId();
