@@ -1580,15 +1580,9 @@ void ProtocolGame::GetMapDescription(int32_t x, int32_t y, int32_t z, int32_t wi
 	int32_t skip = -1;
 	int32_t startz, endz, zstep;
 
-	if (z > MAP_INIT_SURFACE_LAYER) {
-		startz = z - MAP_LAYER_VIEW_LIMIT;
-		endz = std::min<int32_t>(MAP_MAX_LAYERS - 1, z + MAP_LAYER_VIEW_LIMIT);
-		zstep = 1;
-	} else {
-		startz = MAP_INIT_SURFACE_LAYER;
-		endz = 0;
-		zstep = -1;
-	}
+	// 3-band floor model (see map_const.hpp). Must match the client's
+	// setMapDescription iteration exactly or the streamed tiles desync.
+	getFloorIterationRange(z, startz, endz, zstep);
 
 	for (int32_t nz = startz; nz != endz + zstep; nz += zstep) {
 		GetFloorDescription(msg, x, y, nz, width, height, z - nz, skip);
@@ -1687,18 +1681,12 @@ bool ProtocolGame::canSee(int32_t x, int32_t y, int32_t z) const {
 	}
 
 	const Position &myPos = player->getPosition();
-	if (myPos.z <= MAP_INIT_SURFACE_LAYER) {
-		// we are on ground level or above (7 -> 0)
-		// view is from 7 -> 0
-		if (z > MAP_INIT_SURFACE_LAYER) {
-			return false;
-		}
-	} else if (myPos.z >= MAP_INIT_SURFACE_LAYER + 1) {
-		// we are underground (8 -> 15)
-		// view is +/- 2 from the floor we stand on
-		if (std::abs(myPos.getZ() - z) > MAP_LAYER_VIEW_LIMIT) {
-			return false;
-		}
+	// 3-band floor model (see map_const.hpp): a position is visible only if it
+	// falls within the floor range we render from our own floor.
+	int32_t minZ, maxZ;
+	getFloorViewRange(myPos.z, minZ, maxZ);
+	if (z < minZ || z > maxZ) {
+		return false;
 	}
 
 	// negative offset means that the action taken place is on a lower floor than ourself
@@ -7286,7 +7274,11 @@ void ProtocolGame::sendMoveCreature(const std::shared_ptr<Creature> &creature, c
 	if (creature == player) {
 		if (oldStackPos >= 10) {
 			sendMapDescription(newPos);
-		} else if (teleport) {
+		} else if (teleport || oldPos.z != newPos.z) {
+			// Any floor change → resend the full map for the new floor. The
+			// 3-band floor model makes the old incremental floor-change packets
+			// (MoveUp/DownCreature, which hardcode the 8-floor surface stack)
+			// unsafe, so we take the robust full-resend path. See map_const.hpp.
 			NetworkMessage msg;
 			RemoveTileThing(msg, oldPos, oldStackPos);
 			writeToOutputBuffer(msg);
@@ -7326,7 +7318,7 @@ void ProtocolGame::sendMoveCreature(const std::shared_ptr<Creature> &creature, c
 			writeToOutputBuffer(msg);
 		}
 	} else if (canSee(oldPos) && canSee(newPos)) {
-		if (teleport || (oldPos.z == MAP_INIT_SURFACE_LAYER && newPos.z >= MAP_INIT_SURFACE_LAYER + 1) || oldStackPos >= 10) {
+		if (teleport || oldPos.z != newPos.z || oldStackPos >= 10) {
 			sendRemoveTileThing(oldPos, oldStackPos);
 			sendAddCreature(creature, newPos, newStackPos, false);
 		} else {

@@ -471,10 +471,9 @@ void Map::moveCreature(const std::shared_ptr<Creature> &creature, const std::sha
 }
 
 bool Map::canThrowObjectTo(const Position &fromPos, const Position &toPos, const SightLines_t lineOfSight /*= SightLine_CheckSightLine*/, const int32_t rangex /*= Map::maxClientViewportX*/, const int32_t rangey /*= Map::maxClientViewportY*/) {
-	// z checks
-	// underground 8->15
-	// ground level and above 7->0
-	if ((fromPos.z >= 8 && toPos.z <= MAP_INIT_SURFACE_LAYER) || (toPos.z >= MAP_INIT_SURFACE_LAYER + 1 && fromPos.z <= MAP_INIT_SURFACE_LAYER)) {
+	// z checks — can't throw across a floor-view band boundary (sky / surface /
+	// underground). See map_const.hpp for the 3-band model.
+	if (!mapSameViewBand(fromPos.z, toPos.z)) {
 		return false;
 	}
 
