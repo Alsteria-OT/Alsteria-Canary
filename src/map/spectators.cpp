@@ -83,19 +83,11 @@ CreatureVector Spectators::getSpectators(const Position &centerPos, bool multifl
 	uint8_t maxRangeZ = centerPos.z;
 
 	if (multifloor) {
-		if (centerPos.z > MAP_INIT_SURFACE_LAYER) {
-			minRangeZ = static_cast<uint8_t>(std::max<int8_t>(centerPos.z - MAP_LAYER_VIEW_LIMIT, 0u));
-			maxRangeZ = static_cast<uint8_t>(std::min<int8_t>(centerPos.z + MAP_LAYER_VIEW_LIMIT, MAP_MAX_LAYERS - 1));
-		} else if (centerPos.z == MAP_INIT_SURFACE_LAYER - 1) {
-			minRangeZ = 0;
-			maxRangeZ = (MAP_INIT_SURFACE_LAYER - 1) + MAP_LAYER_VIEW_LIMIT;
-		} else if (centerPos.z == MAP_INIT_SURFACE_LAYER) {
-			minRangeZ = 0;
-			maxRangeZ = MAP_INIT_SURFACE_LAYER + MAP_LAYER_VIEW_LIMIT;
-		} else {
-			minRangeZ = 0;
-			maxRangeZ = MAP_INIT_SURFACE_LAYER;
-		}
+		// 3-band floor model (see map_const.hpp) — same range the protocol streams.
+		int32_t minZ, maxZ;
+		getFloorViewRange(centerPos.z, minZ, maxZ);
+		minRangeZ = static_cast<uint8_t>(minZ);
+		maxRangeZ = static_cast<uint8_t>(maxZ);
 	}
 
 	const int32_t min_y = centerPos.y + minRangeY;

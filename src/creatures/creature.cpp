@@ -36,18 +36,13 @@ Creature::~Creature() {
 
 bool Creature::canSee(const Position &myPos, const Position &pos, int32_t viewRangeX, int32_t viewRangeY) {
 	metrics::method_latency measure(__METRICS_METHOD_NAME__);
-	if (myPos.z <= MAP_INIT_SURFACE_LAYER) {
-		// we are on ground level or above (7 -> 0)
-		// view is from 7 -> 0
-		if (pos.z > MAP_INIT_SURFACE_LAYER) {
-			return false;
-		}
-	} else if (myPos.z >= MAP_INIT_SURFACE_LAYER + 1) {
-		// we are underground (8 -> 15)
-		// view is +/- 2 from the floor we stand on
-		if (Position::getDistanceZ(myPos, pos) > MAP_LAYER_VIEW_LIMIT) {
-			return false;
-		}
+	// 3-band floor model (see map_const.hpp): pos is visible only if it lies in
+	// the floor range rendered from our own floor (sky/underground window, or
+	// the full surface stack).
+	int32_t minZ, maxZ;
+	getFloorViewRange(myPos.z, minZ, maxZ);
+	if (pos.z < minZ || pos.z > maxZ) {
+		return false;
 	}
 
 	const int_fast32_t offsetz = myPos.getZ() - pos.getZ();
