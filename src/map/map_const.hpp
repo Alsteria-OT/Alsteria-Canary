@@ -46,14 +46,26 @@ inline MapViewBand mapViewBand(int32_t z) {
 	return MAP_BAND_SKY;
 }
 
-// Inclusive [minZ, maxZ] set of floors visible from `z`.
+// Inclusive [minZ, maxZ] set of floors visible from `z`. Each band streams its
+// FULL range of floors (mirrors the client gameconfig getFloorViewMinZ/MaxZ):
+//   sky        -> [0 .. MAP_SKY_LAYER-1]
+//   surface    -> [MAP_SKY_LAYER .. MAP_INIT_SURFACE_LAYER]
+//   underground-> [MAP_INIT_SURFACE_LAYER+1 .. MAP_MAX_LAYERS-1]
 inline void getFloorViewRange(int32_t z, int32_t &minZ, int32_t &maxZ) {
-	if (mapViewBand(z) == MAP_BAND_SURFACE) {
-		minZ = MAP_SKY_LAYER;
-		maxZ = MAP_INIT_SURFACE_LAYER;
-	} else {
-		minZ = z - MAP_LAYER_VIEW_LIMIT;
-		maxZ = z + MAP_LAYER_VIEW_LIMIT;
+	switch (mapViewBand(z)) {
+		case MAP_BAND_SKY:
+			minZ = 0;
+			maxZ = MAP_SKY_LAYER - 1;
+			break;
+		case MAP_BAND_SURFACE:
+			minZ = MAP_SKY_LAYER;
+			maxZ = MAP_INIT_SURFACE_LAYER;
+			break;
+		case MAP_BAND_UNDERGROUND:
+		default:
+			minZ = MAP_INIT_SURFACE_LAYER + 1;
+			maxZ = MAP_MAX_LAYERS - 1;
+			break;
 	}
 	if (minZ < 0) {
 		minZ = 0;
