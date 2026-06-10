@@ -10,6 +10,7 @@
 #include "game/game.hpp"
 
 #include "config/configmanager.hpp"
+#include "map/map_const.hpp"
 #include "creatures/appearance/mounts/mounts.hpp"
 #include "creatures/appearance/attached_effects/attached_effects.hpp"
 #include "creatures/combat/condition.hpp"
@@ -707,6 +708,12 @@ void Game::loadItemsPrice() {
 void Game::loadMainMap(const std::string &filename) {
 	Monster::despawnRange = g_configManager().getNumber(DEFAULT_DESPAWNRANGE);
 	Monster::despawnRadius = g_configManager().getNumber(DEFAULT_DESPAWNRADIUS);
+	// Seed the 3-band floor model from config.lua; the OTBM header may override
+	// it per-map during loadMap (see IOMap::parseMapDataAttributes).
+	auto &fm = g_mapFloorModel();
+	fm.maxZ = std::clamp<int32_t>(g_configManager().getNumber(MAP_MAX_Z), 0, MAP_MAX_LAYERS - 1);
+	fm.surfaceLayer = std::clamp<int32_t>(g_configManager().getNumber(MAP_SEA_FLOOR), 0, fm.maxZ);
+	fm.skyLayer = std::clamp<int32_t>(g_configManager().getNumber(MAP_SKY_FLOOR), 0, fm.surfaceLayer);
 	map.loadMap(g_configManager().getString(DATA_DIRECTORY) + "/world/" + filename + ".otbm", true, true, true, true, true);
 }
 

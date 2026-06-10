@@ -405,6 +405,17 @@ mapDownloadUrl = "https://github.com/opentibiabr/canary/releases/download/v3.4.0
 mapName = "otservbr"
 mapAuthor = "OpenTibiaBR"
 
+-- Floor model (100-floor 3-band world). Defaults used when the loaded .otbm has
+-- no embedded floor config. z grows downward: 0 = top of sky, mapMaxZ = deepest.
+--   sky band:        floors 0 .. mapSkyFloor-1            (windowed)
+--   surface band:    floors mapSkyFloor .. mapSeaFloor    (full stack)
+--   underground band: floors mapSeaFloor+1 .. mapMaxZ     (windowed)
+-- Must mirror the OTClient setup.otml (max-z / sea-floor / sky-floor) or the
+-- streamed map will desync. Per-map values embedded in the .otbm header override these.
+mapMaxZ = 99
+mapSeaFloor = 69
+mapSkyFloor = 39
+
 -- Party List limitations
 -- max distance in which players in party list are visible
 -- NOTE partyListMaxDistance set to 0 means no limit

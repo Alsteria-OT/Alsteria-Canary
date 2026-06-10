@@ -47,6 +47,9 @@ enum OTBM_AttrTypes_t {
 	OTBM_ATTR_CHARGES = 22,
 	OTBM_ATTR_EXT_SPAWN_NPC_FILE = 23,
 	OTBM_ATTR_EXT_ZONE_FILE = 24,
+	// Per-map 3-band floor model: 3 x U8 [maxZ, seaFloor, skyFloor]. Written by
+	// the map editor; overrides the config.lua mapMaxZ/mapSeaFloor/mapSkyFloor.
+	OTBM_ATTR_FLOOR_CONFIG = 25,
 };
 
 enum OTBM_NodeTypes_t {

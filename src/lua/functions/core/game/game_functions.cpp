@@ -27,6 +27,7 @@
 #include "lua/functions/events/event_callback_functions.hpp"
 #include "lua/scripts/lua_environment.hpp"
 #include "map/spectators.hpp"
+#include "map/map_const.hpp"
 #include "lua/functions/lua_functions_loader.hpp"
 
 void GameFunctions::init(lua_State* L) {
@@ -78,6 +79,8 @@ void GameFunctions::init(lua_State* L) {
 	Lua::registerMethod(L, "Game", "startRaid", GameFunctions::luaGameStartRaid);
 
 	Lua::registerMethod(L, "Game", "getClientVersion", GameFunctions::luaGameGetClientVersion);
+
+	Lua::registerMethod(L, "Game", "getMapFloorModel", GameFunctions::luaGameGetMapFloorModel);
 
 	Lua::registerMethod(L, "Game", "reload", GameFunctions::luaGameReload);
 
@@ -292,6 +295,18 @@ int GameFunctions::luaGameloadMapChunk(lua_State* L) {
 	const Position &position = Lua::getPosition(L, 2);
 	g_dispatcher().addEvent([path, position]() { g_game().loadMap(path, position); }, __FUNCTION__);
 	return 0;
+}
+
+int GameFunctions::luaGameGetMapFloorModel(lua_State* L) {
+	// Game.getMapFloorModel() -> { maxZ, seaFloor, skyFloor }
+	// Reflects the active runtime floor model (config.lua defaults, possibly
+	// overridden per-map by the OTBM header). Used to sync the client.
+	const auto &fm = g_mapFloorModel();
+	lua_createtable(L, 0, 3);
+	Lua::setField(L, "maxZ", fm.maxZ);
+	Lua::setField(L, "seaFloor", fm.surfaceLayer);
+	Lua::setField(L, "skyFloor", fm.skyLayer);
+	return 1;
 }
 
 int GameFunctions::luaGameGetExperienceForLevel(lua_State* L) {

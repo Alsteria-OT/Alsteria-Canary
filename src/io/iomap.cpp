@@ -12,6 +12,7 @@
 #include "game/movement/teleport.hpp"
 #include "game/game.hpp"
 #include "io/filestream.hpp"
+#include "map/map_const.hpp"
 
 /*
     OTBM_ROOTV1
@@ -106,6 +107,18 @@ void IOMap::parseMapDataAttributes(FileStream &stream, Map* map) {
 			case OTBM_ATTR_EXT_ZONE_FILE: {
 				map->zonesfile = map->path.string().substr(0, map->path.string().rfind('/') + 1);
 				map->zonesfile += stream.getString();
+			} break;
+
+			case OTBM_ATTR_FLOOR_CONFIG: {
+				// Per-map 3-band floor model — overrides the config.lua defaults.
+				const int32_t maxZ = stream.getU8();
+				const int32_t seaFloor = stream.getU8();
+				const int32_t skyFloor = stream.getU8();
+				auto &fm = g_mapFloorModel();
+				fm.maxZ = std::clamp<int32_t>(maxZ, 0, MAP_MAX_LAYERS - 1);
+				fm.surfaceLayer = std::clamp<int32_t>(seaFloor, 0, fm.maxZ);
+				fm.skyLayer = std::clamp<int32_t>(skyFloor, 0, fm.surfaceLayer);
+				g_logger().info("Map floor model from OTBM: maxZ={} seaFloor={} skyFloor={}", fm.maxZ, fm.surfaceLayer, fm.skyLayer);
 			} break;
 
 			default:

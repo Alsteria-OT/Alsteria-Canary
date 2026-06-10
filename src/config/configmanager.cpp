@@ -54,6 +54,10 @@ bool ConfigManager::load() {
 
 		loadIntConfig(L, DEPOT_BOXES, "depotBoxes", 20);
 		loadIntConfig(L, FREE_DEPOT_LIMIT, "freeDepotLimit", 2000);
+		// 3-band floor model defaults (a map may override these via its OTBM header).
+		loadIntConfig(L, MAP_MAX_Z, "mapMaxZ", 99);
+		loadIntConfig(L, MAP_SEA_FLOOR, "mapSeaFloor", 69);
+		loadIntConfig(L, MAP_SKY_FLOOR, "mapSkyFloor", 39);
 		loadIntConfig(L, GAME_PORT, "gameProtocolPort", 7172);
 		loadIntConfig(L, LOGIN_PORT, "loginProtocolPort", 7171);
 		loadIntConfig(L, MARKET_OFFER_DURATION, "marketOfferDuration", 30 * 24 * 60 * 60);
