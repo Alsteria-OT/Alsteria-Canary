@@ -30,11 +30,11 @@ static constexpr int8_t MAP_LAYER_VIEW_LIMIT = 2;
 // loader (iomap) overrides it from the map's header, and protocolgame sends the
 // values to the client so both sides agree without hand-syncing setup.otml.
 struct MapFloorModel {
-	int32_t maxZ = MAP_MAX_LAYERS - 1;          // deepest floor that exists/streams
+	int32_t maxZ = MAP_MAX_LAYERS - 1; // deepest floor that exists/streams
 	int32_t surfaceLayer = MAP_INIT_SURFACE_LAYER; // surface band bottom (sea floor)
-	int32_t skyLayer = MAP_SKY_LAYER;           // surface band top (sky floor)
+	int32_t skyLayer = MAP_SKY_LAYER; // surface band top (sky floor)
 };
-inline MapFloorModel& g_mapFloorModel() {
+inline MapFloorModel &g_mapFloorModel() {
 	static MapFloorModel model;
 	return model;
 }
