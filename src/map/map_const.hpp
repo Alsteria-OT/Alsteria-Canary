@@ -17,10 +17,27 @@ static constexpr int32_t MAP_MAX_VIEW_PORT_X = MAP_MAX_CLIENT_VIEW_PORT_X + 3; /
 static constexpr int32_t MAP_MAX_VIEW_PORT_Y = MAP_MAX_CLIENT_VIEW_PORT_Y + 5; // min value: maxClientViewportY + 1
 
 // 100-floor world. z grows DOWNWARD: 0 = top of the sky, MAP_MAX_LAYERS-1 = deepest.
+// MAP_MAX_LAYERS is a COMPILE-TIME capacity (it sizes the per-sector floors[]
+// array). The ACTIVE per-map model below may use a smaller maxZ and different
+// band boundaries — these are loaded from the map and broadcast to the client.
 static constexpr int8_t MAP_MAX_LAYERS = 100;
-static constexpr int8_t MAP_INIT_SURFACE_LAYER = 69; // playable ground floor
-static constexpr int8_t MAP_SKY_LAYER = 39; // floors with z < this are "sky" (windowed view)
+static constexpr int8_t MAP_INIT_SURFACE_LAYER = 69; // default playable ground floor
+static constexpr int8_t MAP_SKY_LAYER = 39; // default: floors with z < this are "sky"
 static constexpr int8_t MAP_LAYER_VIEW_LIMIT = 2;
+
+// Per-map floor model — the single runtime source of truth for band boundaries
+// and the deepest streamable floor. Defaults to the constants above; the map
+// loader (iomap) overrides it from the map's header, and protocolgame sends the
+// values to the client so both sides agree without hand-syncing setup.otml.
+struct MapFloorModel {
+	int32_t maxZ = MAP_MAX_LAYERS - 1;          // deepest floor that exists/streams
+	int32_t surfaceLayer = MAP_INIT_SURFACE_LAYER; // surface band bottom (sea floor)
+	int32_t skyLayer = MAP_SKY_LAYER;           // surface band top (sky floor)
+};
+inline MapFloorModel& g_mapFloorModel() {
+	static MapFloorModel model;
+	return model;
+}
 
 // ───────────────────────────────────────────────────────────────────────────
 // Floor view model — three bands, each deciding which floors are streamed/
@@ -37,10 +54,11 @@ enum MapViewBand : uint8_t {
 };
 
 inline MapViewBand mapViewBand(int32_t z) {
-	if (z > MAP_INIT_SURFACE_LAYER) {
+	const auto &m = g_mapFloorModel();
+	if (z > m.surfaceLayer) {
 		return MAP_BAND_UNDERGROUND;
 	}
-	if (z >= MAP_SKY_LAYER) {
+	if (z >= m.skyLayer) {
 		return MAP_BAND_SURFACE;
 	}
 	return MAP_BAND_SKY;
@@ -52,19 +70,20 @@ inline MapViewBand mapViewBand(int32_t z) {
 //   surface    -> [MAP_SKY_LAYER .. MAP_INIT_SURFACE_LAYER]
 //   underground-> [MAP_INIT_SURFACE_LAYER+1 .. MAP_MAX_LAYERS-1]
 inline void getFloorViewRange(int32_t z, int32_t &minZ, int32_t &maxZ) {
+	const auto &m = g_mapFloorModel();
 	switch (mapViewBand(z)) {
 		case MAP_BAND_SKY:
 			minZ = 0;
-			maxZ = MAP_SKY_LAYER - 1;
+			maxZ = m.skyLayer - 1;
 			break;
 		case MAP_BAND_SURFACE:
-			minZ = MAP_SKY_LAYER;
-			maxZ = MAP_INIT_SURFACE_LAYER;
+			minZ = m.skyLayer;
+			maxZ = m.surfaceLayer;
 			break;
 		case MAP_BAND_UNDERGROUND:
 		default:
-			minZ = MAP_INIT_SURFACE_LAYER + 1;
-			maxZ = MAP_MAX_LAYERS - 1;
+			minZ = m.surfaceLayer + 1;
+			maxZ = m.maxZ;
 			break;
 	}
 	if (minZ < 0) {
