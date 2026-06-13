@@ -10,6 +10,7 @@
 #include "creatures/combat/combat.hpp"
 
 #include "config/configmanager.hpp"
+#include "custom/custom_manager.hpp"
 #include "creatures/combat/condition.hpp"
 #include "creatures/combat/spells.hpp"
 #include "creatures/monsters/monster.hpp"
@@ -167,6 +168,14 @@ CombatType_t Combat::ConditionToDamageType(ConditionType_t type) {
 
 		default:
 			break;
+	}
+
+	// Custom field types — when a CONDITION_CUSTOM_<n> ticks, it asks here
+	// which damage type to deal. CustomManager owns the slot→combatType map,
+	// populated from data/custom/types.json. Returns COMBAT_NONE if no field
+	// claims this slot, which is the same as the original behavior.
+	if (type >= CONDITION_CUSTOM_1 && type <= CONDITION_CUSTOM_8) {
+		return g_customManager().getCombatTypeForCondition(type);
 	}
 
 	return COMBAT_NONE;
@@ -2435,6 +2444,11 @@ void MagicField::onStepInField(const std::shared_ptr<Creature> &creature) {
 	}
 
 	const ItemType &it = items[getID()];
+	// Diagnostic: dumb but useful for confirming the field item parsed with
+	// a conditionDamage at items.xml time. If this prints "no conditionDamage"
+	// the field item was registered but parseField never attached the
+	// damage block — usually a load-order issue or a typo in items.xml.
+	g_logger().info("[MagicField::onStepInField] id={} stepped on by '{}' — conditionDamage={}", getID(), creature ? creature->getName() : "?", it.conditionDamage ? "present" : "MISSING");
 	if (it.conditionDamage) {
 		const auto &conditionCopy = it.conditionDamage->clone();
 		auto ownerId = getOwnerId();

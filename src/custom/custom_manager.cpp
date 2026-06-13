@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <unordered_map>
 
 #include <nlohmann/json.hpp>
 
@@ -27,10 +28,16 @@ void CustomManager::load(const std::string &dataPath) {
 	m_loaded = false;
 	std::fill(std::begin(m_damageActive), std::end(m_damageActive), false);
 	std::fill(std::begin(m_conditionActive), std::end(m_conditionActive), false);
+	m_fieldTypes.clear();
 
 	const std::string path = dataPath + "/custom/types.json";
 	std::ifstream file(path);
 	if (!file.is_open()) {
+		// Log even when the file is missing — silent returns made it impossible
+		// to tell whether the loader ran but found nothing vs. whether a stale
+		// binary skipped the whole code path. This single line is the only
+		// reliable boot-time signal that the CustomManager wiring is alive.
+		g_logger().info("[CustomManager] No data/custom/types.json found at {} (using built-ins only)", path);
 		m_loaded = true;
 		return;
 	}
@@ -71,8 +78,54 @@ void CustomManager::load(const std::string &dataPath) {
 		}
 	}
 
+	// "fields" — register custom magic-field types. Each entry binds an
+	// items.xml `field="<name>"` value to a ConditionType (slot 1..8 OR a
+	// builtin like "CONDITION_FIRE") + a CombatType (a slot 1..8 OR a
+	// builtin like "COMBAT_HOLYDAMAGE"). The two parsers in item_parse.cpp
+	// fall through to this registry when a field name isn't built-in, so
+	// users can add new field types via JSON without any source change.
+	if (root.contains("fields") && root["fields"].is_array()) {
+		for (const auto &entry : root["fields"]) {
+			std::string name = asLowerCaseString(entry.value("name", std::string {}));
+			if (name.empty()) {
+				continue;
+			}
+			CustomFieldType ft;
+			ft.name = name;
+
+			// Condition resolution priority:
+			//   1. `conditionName` (e.g. "CONDITION_DAZZLED") — reuses a
+			//      builtin condition with full engine integration (icon,
+			//      charms, resists, cleansing).
+			//   2. `conditionSlot` (1..8) — claims a CUSTOM_* slot.
+			// `conditionName` wins so users can upgrade a registered field
+			// from custom-slot to builtin without renumbering everything.
+			if (entry.contains("conditionName") && entry["conditionName"].is_string()) {
+				ft.conditionType = stringToConditionType(entry["conditionName"].get<std::string>());
+			}
+			if (ft.conditionType == CONDITION_NONE) {
+				int conditionSlot = entry.value("conditionSlot", 0);
+				if (conditionSlot >= 1 && conditionSlot <= 8) {
+					ft.conditionType = conditionSlotToEnum(conditionSlot);
+				}
+			}
+
+			// Combat type: prefer numeric custom slot, else map a builtin
+			// name string. If both are missing the field still parses, just
+			// with COMBAT_NONE — protects against typos breaking server boot.
+			int damageSlot = entry.value("damageSlot", 0);
+			if (damageSlot >= 1 && damageSlot <= 8) {
+				ft.combatType = damageSlotToEnum(damageSlot);
+			} else if (entry.contains("combatType") && entry["combatType"].is_string()) {
+				ft.combatType = stringToCombatType(entry["combatType"].get<std::string>());
+			}
+
+			m_fieldTypes[name] = ft;
+		}
+	}
+
 	m_loaded = true;
-	g_logger().info("[CustomManager] Loaded custom types from {}", path);
+	g_logger().info("[CustomManager] Loaded custom types from {} ({} fields)", path, m_fieldTypes.size());
 }
 
 std::optional<CustomDamageType> CustomManager::getDamageType(CombatType_t type) const {
@@ -117,4 +170,74 @@ ConditionType_t CustomManager::conditionSlotToEnum(int slot) {
 		return CONDITION_NONE;
 	}
 	return static_cast<ConditionType_t>(static_cast<int>(CONDITION_CUSTOM_1) + slot - 1);
+}
+
+std::optional<CustomFieldType> CustomManager::getFieldType(const std::string &name) const {
+	auto it = m_fieldTypes.find(asLowerCaseString(name));
+	if (it == m_fieldTypes.end()) {
+		return std::nullopt;
+	}
+	return it->second;
+}
+
+CombatType_t CustomManager::getCombatTypeForCondition(ConditionType_t conditionType) const {
+	// Iterate registered fields looking for the one bound to this condition
+	// slot. The registry is small (≤ 8 entries) so linear scan is fine.
+	for (const auto &[name, ft] : m_fieldTypes) {
+		if (ft.conditionType == conditionType) {
+			return ft.combatType;
+		}
+	}
+	return COMBAT_NONE;
+}
+
+ConditionType_t CustomManager::stringToConditionType(const std::string &name) {
+	// Builtin conditions a custom field can reuse. Only conditions that have
+	// a sensible field-DoT meaning are exposed — the engine treats them as
+	// damage conditions and they round-trip through ConditionToDamageType
+	// natively, no CustomManager fallback required.
+	static const std::unordered_map<std::string, ConditionType_t> map = {
+		{ "CONDITION_FIRE", CONDITION_FIRE },
+		{ "CONDITION_POISON", CONDITION_POISON },
+		{ "CONDITION_ENERGY", CONDITION_ENERGY },
+		{ "CONDITION_BLEEDING", CONDITION_BLEEDING },
+		{ "CONDITION_DROWN", CONDITION_DROWN },
+		{ "CONDITION_FREEZING", CONDITION_FREEZING },
+		{ "CONDITION_DAZZLED", CONDITION_DAZZLED },
+		{ "CONDITION_CURSED", CONDITION_CURSED },
+	};
+	auto it = map.find(name);
+	return it == map.end() ? CONDITION_NONE : it->second;
+}
+
+CombatType_t CustomManager::stringToCombatType(const std::string &name) {
+	// Static map of canonical CombatType_t names → enum values. Matches the
+	// strings the OT Forge UI emits in types.json so the round-trip stays
+	// readable. Anything missing returns COMBAT_NONE which the field parser
+	// treats as "no damage on tick" — server still boots cleanly.
+	static const std::unordered_map<std::string, CombatType_t> map = {
+		{ "COMBAT_PHYSICALDAMAGE", COMBAT_PHYSICALDAMAGE },
+		{ "COMBAT_ENERGYDAMAGE", COMBAT_ENERGYDAMAGE },
+		{ "COMBAT_EARTHDAMAGE", COMBAT_EARTHDAMAGE },
+		{ "COMBAT_FIREDAMAGE", COMBAT_FIREDAMAGE },
+		{ "COMBAT_LIFEDRAIN", COMBAT_LIFEDRAIN },
+		{ "COMBAT_MANADRAIN", COMBAT_MANADRAIN },
+		{ "COMBAT_HEALING", COMBAT_HEALING },
+		{ "COMBAT_DROWNDAMAGE", COMBAT_DROWNDAMAGE },
+		{ "COMBAT_ICEDAMAGE", COMBAT_ICEDAMAGE },
+		{ "COMBAT_HOLYDAMAGE", COMBAT_HOLYDAMAGE },
+		{ "COMBAT_DEATHDAMAGE", COMBAT_DEATHDAMAGE },
+		{ "COMBAT_AGONYDAMAGE", COMBAT_AGONYDAMAGE },
+		{ "COMBAT_NEUTRALDAMAGE", COMBAT_NEUTRALDAMAGE },
+		{ "COMBAT_CUSTOM_1", COMBAT_CUSTOM_1 },
+		{ "COMBAT_CUSTOM_2", COMBAT_CUSTOM_2 },
+		{ "COMBAT_CUSTOM_3", COMBAT_CUSTOM_3 },
+		{ "COMBAT_CUSTOM_4", COMBAT_CUSTOM_4 },
+		{ "COMBAT_CUSTOM_5", COMBAT_CUSTOM_5 },
+		{ "COMBAT_CUSTOM_6", COMBAT_CUSTOM_6 },
+		{ "COMBAT_CUSTOM_7", COMBAT_CUSTOM_7 },
+		{ "COMBAT_CUSTOM_8", COMBAT_CUSTOM_8 },
+	};
+	auto it = map.find(name);
+	return it == map.end() ? COMBAT_NONE : it->second;
 }

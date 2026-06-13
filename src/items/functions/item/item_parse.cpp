@@ -10,6 +10,7 @@
 #include "items/functions/item/item_parse.hpp"
 
 #include "config/configmanager.hpp"
+#include "custom/custom_manager.hpp"
 #include "items/weapons/weapons.hpp"
 #include "lua/creature/movement.hpp"
 #include "utils/pugicast.hpp"
@@ -619,9 +620,15 @@ std::tuple<ConditionId_t, ConditionType_t> ItemParse::parseFieldConditions(pugi:
 	} else if (lowerStringValue == "physical") {
 		conditionType = CONDITION_BLEEDING;
 		return std::make_tuple(conditionId, conditionType);
-	} else {
-		g_logger().warn("[Items::parseItemNode] Unknown field value {}", valueAttribute.as_string());
 	}
+
+	// Fallthrough: check user-registered field types from data/custom/types.json
+	// before warning. Lets `field="holy"`, `field="ice"`, etc. resolve via the
+	// JSON registry without source changes — the OT Forge UI writes this file.
+	if (auto customField = g_customManager().getFieldType(lowerStringValue); customField) {
+		return std::make_tuple(CONDITIONID_COMBAT, customField->conditionType);
+	}
+	g_logger().warn("[Items::parseItemNode] Unknown field value {}", valueAttribute.as_string());
 	return std::make_tuple(CONDITIONID_DEFAULT, CONDITION_NONE);
 }
 
@@ -639,9 +646,15 @@ CombatType_t ItemParse::parseFieldCombatType(pugi::xml_attribute valueAttribute)
 		return COMBAT_PHYSICALDAMAGE;
 	} else if (lowerStringValue == "agony") {
 		return COMBAT_AGONYDAMAGE;
-	} else {
-		g_logger().warn("[Items::parseItemNode] Unknown field value {}", valueAttribute.as_string());
 	}
+
+	// Same fallthrough as parseFieldConditions — keep the two parsers in lockstep
+	// so a JSON-registered field gets both its condition tick and its damage
+	// type from one source of truth.
+	if (auto customField = g_customManager().getFieldType(lowerStringValue); customField) {
+		return customField->combatType;
+	}
+	g_logger().warn("[Items::parseItemNode] Unknown field value {}", valueAttribute.as_string());
 	return COMBAT_NONE;
 }
 
@@ -692,6 +705,10 @@ void ItemParse::parseField(const std::string &stringValue, pugi::xml_node attrib
 		// Parse fields conditions (fire/energy/poison/drown/physical)
 		combatType = parseFieldCombatType(valueAttribute);
 		auto [conditionId, conditionType] = parseFieldConditions(valueAttribute);
+		// Diagnostic: log every field-attribute resolution so silent
+		// COMBAT_NONE returns (registry empty, typo'd name, etc.) leave a
+		// trail in the boot log. Cheap — only fires while items.xml loads.
+		g_logger().info("[parseField] item id={} name='{}' field='{}' → combatType={}, conditionType={}", itemType.id, itemType.name, valueAttribute.as_string(), static_cast<int>(combatType), static_cast<int>(conditionType));
 		if (combatType != COMBAT_NONE) {
 			auto conditionDamage = std::make_shared<ConditionDamage>(conditionId, conditionType);
 
@@ -705,6 +722,9 @@ void ItemParse::parseField(const std::string &stringValue, pugi::xml_node attrib
 			if (conditionDamage->getTotalDamage() > 0) {
 				conditionDamage->setParam(CONDITION_PARAM_FORCEUPDATE, 1);
 			}
+			g_logger().info("[parseField] item id={} totalDamage={} (conditionDamage set up)", itemType.id, conditionDamage->getTotalDamage());
+		} else {
+			g_logger().warn("[parseField] item id={} has field='{}' but combatType=COMBAT_NONE — damage will not apply", itemType.id, valueAttribute.as_string());
 		}
 	}
 }
